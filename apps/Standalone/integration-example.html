@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logic App Designer Integration Example</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .controls { margin-bottom: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px; }
+        .designer-container { 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            overflow: hidden;
+            height: 600px;
+        }
+        iframe { width: 100%; height: 100%; border: none; }
+        button { margin: 5px; padding: 10px 15px; cursor: pointer; }
+        textarea { width: 100%; height: 150px; margin: 10px 0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.ready { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Logic App Designer Integration</h1>
+        
+        <div class="controls">
+            <h3>Controls</h3>
+            <button onclick="loadSampleWorkflow()">Load Sample Workflow</button>
+            <button onclick="getWorkflow()">Get Current Workflow</button>
+            <button onclick="toggleMode()">Toggle Read-Only Mode</button>
+            <button onclick="changeTheme()">Change Theme</button>
+            
+            <div>
+                <h4>Custom Workflow JSON:</h4>
+                <textarea id="workflowJson" placeholder="Paste your workflow JSON here..."></textarea>
+                <button onclick="loadCustomWorkflow()">Load Custom Workflow</button>
+            </div>
+            
+            <div id="status" class="status">Initializing...</div>
+        </div>
+
+        <div class="designer-container">
+            <iframe 
+                id="designerFrame" 
+                src="http://localhost:4200"
+                title="Logic App Designer">
+            </iframe>
+        </div>
+
+        <div class="controls">
+            <h3>Current Workflow Output:</h3>
+            <textarea id="outputJson" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        class LogicAppDesignerClient {
+            constructor(iframeId) {
+                this.iframe = document.getElementById(iframeId);
+                this.isReady = false;
+                this.currentMode = 'edit';
+                this.currentTheme = 'light';
+                this.pendingRequests = new Map();
+                
+                this.setupMessageListener();
+            }
+
+            setupMessageListener() {
+                window.addEventListener('message', (event) => {
+                    // Add origin validation in production
+                    // if (event.origin !== 'http://localhost:4200') return;
+                    
+                    const message = event.data;
+                    console.log('Received message from iframe:', message);
+                    
+                    switch (message.type) {
+                        case 'READY':
+                            this.handleReady();
+                            break;
+                        case 'WORKFLOW_CHANGED':
+                            this.handleWorkflowChanged(message.payload);
+                            break;
+                        case 'WORKFLOW_RESPONSE':
+                            this.handleWorkflowResponse(message);
+                            break;
+                        case 'ERROR':
+                            this.handleError(message.payload);
+                            break;
+                    }
+                });
+            }
+
+            handleReady() {
+                this.isReady = true;
+                this.updateStatus('Designer is ready!', 'ready');
+                console.log('Designer iframe is ready');
+            }
+
+            handleWorkflowChanged(payload) {
+                console.log('Workflow changed:', payload);
+                document.getElementById('outputJson').value = JSON.stringify(payload.workflow, null, 2);
+            }
+
+            handleWorkflowResponse(message) {
+                const { requestId, payload } = message;
+                const resolver = this.pendingRequests.get(requestId);
+                if (resolver) {
+                    resolver(payload.workflow);
+                    this.pendingRequests.delete(requestId);
+                }
+            }
+
+            handleError(payload) {
+                console.error('Designer error:', payload);
+                this.updateStatus(`Error: ${payload.message}`, 'error');
+            }
+
+            sendMessage(message) {
+                if (!this.isReady) {
+                    console.warn('Designer not ready yet');
+                    return;
+                }
+                this.iframe.contentWindow.postMessage(message, '*');
+            }
+
+            loadWorkflow(workflow, config = {}) {
+                this.sendMessage({
+                    type: 'LOAD_WORKFLOW',
+                    payload: {
+                        workflow,
+                        mode: this.currentMode,
+                        theme: this.currentTheme,
+                        ...config
+                    }
+                });
+            }
+
+            updateConfig(config) {
+                this.sendMessage({
+                    type: 'UPDATE_CONFIG',
+                    payload: config
+                });
+            }
+
+            async getWorkflow() {
+                return new Promise((resolve) => {
+                    const requestId = Date.now().toString();
+                    this.pendingRequests.set(requestId, resolve);
+                    
+                    this.sendMessage({
+                        type: 'GET_WORKFLOW',
+                        requestId
+                    });
+                });
+            }
+
+            updateStatus(message, type = '') {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+            }
+        }
+
+        // Initialize the client
+        const designerClient = new LogicAppDesignerClient('designerFrame');
+
+        // Sample workflow for testing
+        const sampleWorkflow = {
+            "definition": {
+                "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": {
+                    "$connections": {
+                        "defaultValue": {},
+                        "type": "Object"
+                    }
+                },
+                "triggers": {
+                    "Receive_HTTP_Request": {
+                        "type": "Request",
+                        "kind": "Http",
+                        "inputs": {
+                            "schema": {}
+                        }
+                    }
+                },
+                "actions": {
+                    "Initialize_RetryInterval": {
+                        "runAfter": {},
+                        "type": "InitializeVariable",
+                        "inputs": {
+                            "variables": [{
+                                "name": "RetryInterval",
+                                "type": "integer",
+                                "value": 30
+                            }]
+                        }
+                    }
+                }
+            }
+        };
+
+        // Control functions
+        function loadSampleWorkflow() {
+            designerClient.loadWorkflow(sampleWorkflow);
+        }
+
+        function loadCustomWorkflow() {
+            const jsonText = document.getElementById('workflowJson').value;
+            try {
+                const workflow = JSON.parse(jsonText);
+                designerClient.loadWorkflow(workflow);
+            } catch (error) {
+                alert('Invalid JSON: ' + error.message);
+            }
+        }
+
+        async function getWorkflow() {
+            try {
+                const workflow = await designerClient.getWorkflow();
+                document.getElementById('outputJson').value = JSON.stringify(workflow, null, 2);
+                designerClient.updateStatus('Workflow retrieved successfully', 'ready');
+            } catch (error) {
+                designerClient.updateStatus('Failed to get workflow', 'error');
+            }
+        }
+
+        function toggleMode() {
+            designerClient.currentMode = designerClient.currentMode === 'edit' ? 'readonly' : 'edit';
+            designerClient.updateConfig({ mode: designerClient.currentMode });
+            designerClient.updateStatus(`Mode changed to: ${designerClient.currentMode}`, 'ready');
+        }
+
+        function changeTheme() {
+            designerClient.currentTheme = designerClient.currentTheme === 'light' ? 'dark' : 'light';
+            designerClient.updateConfig({ theme: designerClient.currentTheme });
+            designerClient.updateStatus(`Theme changed to: ${designerClient.currentTheme}`, 'ready');
+        }
+    </script>
+</body>
+</html>

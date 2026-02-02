@@ -30,6 +30,11 @@ export default defineConfig({
   server: {
     port: 4200,
     https: false, // Force HTTP only
+    headers: {
+      // Allow iframe embedding from any origin (adjust for production)
+      'X-Frame-Options': 'ALLOWALL',
+      'Content-Security-Policy': "frame-ancestors *;"
+    },
     proxy: {
       '/templatesLocalProxy': {
         target: 'https://priti-cxf4h5cpcteue4az.b02.azurefd.net',

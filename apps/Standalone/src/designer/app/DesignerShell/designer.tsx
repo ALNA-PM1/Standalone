@@ -2,10 +2,28 @@ import { SettingsBox } from '../../components/settings_box';
 import { useQueryCachePersist } from '../../state/workflowLoadingSelectors';
 import { LocalDesigner } from '../LocalDesigner/localDesigner';
 import { ReactQueryProvider } from '@microsoft/logic-apps-designer';
+import { iframeService } from '../../../services/iframeService';
 
 export const DesignerWrapper = () => {
   const queryCachePersist = useQueryCachePersist();
+  const isIframeMode = iframeService.getIsIframeMode();
 
+  if (isIframeMode) {
+    // Iframe mode - no settings panel, full width designer
+    return (
+      <ReactQueryProvider persistEnabled={queryCachePersist}>
+        <div style={{ 
+          height: '100vh', 
+          width: '100vw',
+          overflow: 'hidden'
+        }}>
+          <LocalDesigner />
+        </div>
+      </ReactQueryProvider>
+    );
+  }
+
+  // Standalone mode - with settings panel
   return (
     <ReactQueryProvider persistEnabled={queryCachePersist}>
       <div style={{ 

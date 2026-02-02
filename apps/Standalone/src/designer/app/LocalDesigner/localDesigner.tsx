@@ -5,6 +5,9 @@ import { HttpClient } from './httpClient';
 import { MockConnectorService } from './mockConnectorService';
 import { PseudoCommandBar } from './pseudoCommandBar';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { IframeHeader } from '../../components/IframeHeader';
+import { useIframeIntegration } from '../../../hooks/useIframeIntegration';
+import { useEffect } from 'react';
 import {
   StandardConnectionService,
   StandardOperationManifestService,
@@ -207,6 +210,10 @@ const editorService = new CustomEditorService();
 const connectionParameterEditorService = new CustomConnectionParameterEditorService();
 
 export const LocalDesigner = () => {
+  // Initialize iframe integration
+  const { isIframeMode } = useIframeIntegration();
+  
+  const workflowState = useSelector((state: RootState) => state.workflowLoader);
   const {
     workflowDefinition,
     parameters,
@@ -223,7 +230,22 @@ export const LocalDesigner = () => {
     showEdgeDrawing,
     hostOptions,
     suppressDefaultNodeSelect,
-  } = useSelector((state: RootState) => state.workflowLoader);
+  } = workflowState || {};
+
+  // Debug logging for iframe mode
+  useEffect(() => {
+    if (isIframeMode) {
+      console.log('🔍 LocalDesigner state in iframe mode:', {
+        isIframeMode,
+        hasWorkflowDefinition: !!workflowDefinition,
+        workflowDefinition,
+        isReadOnly,
+        language,
+        connections,
+        parameters
+      });
+    }
+  }, [isIframeMode, workflowDefinition, isReadOnly, language, connections, parameters]);
   editorService.areCustomEditorsEnabled = !!areCustomEditorsEnabled;
   connectionParameterEditorService.areCustomEditorsEnabled = !!areCustomEditorsEnabled;
   const isConsumption = hostingPlan === 'consumption';
@@ -259,6 +281,9 @@ export const LocalDesigner = () => {
 
   return (
     <DesignerProvider locale={language} options={{ ...designerProviderProps }}>
+      {/* Iframe Header */}
+      <IframeHeader isVisible={isIframeMode && !!workflowDefinition} />
+      
       {workflowDefinition ? (
         <BJSWorkflowProvider
           workflow={{
@@ -277,7 +302,27 @@ export const LocalDesigner = () => {
           <CombineInitializeVariableDialog />
           <TriggerDescriptionDialog workflowId={'local'} />
         </BJSWorkflowProvider>
-      ) : null}
+      ) : (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          fontSize: '16px',
+          color: '#666',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          {isIframeMode ? (
+            <>
+              <div>🔍 Iframe Mode: Waiting for workflow...</div>
+              <div style={{ fontSize: '12px' }}>Check console for debugging info</div>
+            </>
+          ) : (
+            <div>No workflow loaded</div>
+          )}
+        </div>
+      )}
     </DesignerProvider>
   );
 };

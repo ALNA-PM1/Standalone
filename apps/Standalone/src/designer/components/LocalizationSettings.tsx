@@ -4,9 +4,10 @@ import { Dropdown } from '@fluentui/react';
 import { useDispatch, useSelector } from 'react-redux';
 
 export const LocalizationSettings = () => {
-  const { language } = useSelector((state: RootState) => {
+  const workflowState = useSelector((state: RootState) => {
     return state.workflowLoader;
   });
+  const { language } = workflowState || {};
   const dispatch = useDispatch<AppDispatch>();
 
   return (

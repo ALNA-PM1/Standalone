@@ -202,6 +202,18 @@ export const workflowLoadingSlice = createSlice({
     setDarkMode: (state, action: PayloadAction<boolean>) => {
       state.isDarkMode = action.payload;
     },
+    setIsDarkMode: (state, action: PayloadAction<boolean>) => {
+      state.isDarkMode = action.payload;
+    },
+    setWorkflowDefinition: (state, action: PayloadAction<LogicAppsV2.WorkflowDefinition | null>) => {
+      state.workflowDefinition = action.payload;
+    },
+    setConnections: (state, action: PayloadAction<ConnectionReferences>) => {
+      state.connections = action.payload;
+    },
+    setParameters: (state, action: PayloadAction<Record<string, WorkflowParameter>>) => {
+      state.parameters = action.payload;
+    },
     setHostingPlan: (state, action: PayloadAction<HostingPlanTypes>) => {
       state.hostingPlan = action.payload;
       state.appId = undefined;
@@ -328,6 +340,10 @@ export const {
   setMonitoringView,
   setUnitTest,
   setDarkMode,
+  setIsDarkMode,
+  setWorkflowDefinition,
+  setConnections,
+  setParameters,
   setHostingPlan,
   setIsLocalSelected,
   setIsChatBotEnabled,
