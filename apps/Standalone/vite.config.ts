@@ -70,15 +70,7 @@ export default defineConfig({
       '@tanstack/react-query',
       '@fluentui/react',
       '@fluentui/react-components',
-      '@xyflow/react',
       'util'
     ]
   },
-  css: {
-    preprocessorOptions: {
-      less: {
-        javascriptEnabled: true,
-      }
-    }
-  }
 });
