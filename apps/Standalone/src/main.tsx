@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import './polyfills';
+import '@xyflow/react/dist/style.css';
 import { initializeIcons } from '@fluentui/react';
 import { createRoot } from 'react-dom/client';
 
